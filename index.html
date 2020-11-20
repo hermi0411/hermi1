@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+window.onload = function(){
+var socket = io();
+function random(min, max) { // min and max included 
+  return Math.floor(Math.random() * (max - min + 1) + min);
+}
+var Id;
+var playerList;
+var long;
+var left = false,
+right = false,
+up = false,
+down = false;
+ingame = false;
+var max, min;
+var canvas = document.getElementById("theCanvas");
+var ctx = canvas.getContext("2d");
+var p = document.getElementById('p');
+var form = document.getElementById('userform');
+var input = document.getElementById('name');
+var sub = document.getElementById('sub');
+var others;
+var angle = 180*Math.PI/180;
+var name;
+var txt = "";
+var count = 0;
+var startPosX = random(20, 480);
+var startPosY = random(20, 480);
+var startPosAng = random(0, Math.PI*2);
+var myright;
+        var mytop;
+        var mybottom;
+        var otherleft;
+        var otherright;
+        var othertop;
+        var otherbottom;
+        var crash;
+socket.on('setPlayerId', function(data){
+Id = data;
+});
+socket.on('players', function(data){
+playerList = data;
+long = Object.keys(playerList);
+for(var i in playerList){
+ txt += playerList[i].id + "<br>";
+}
+p.innerHTML = txt;
+txt = "";
+});
+socket.on('dis', function(data){
+delete playerList[data];
+for(var i in playerList){
+ txt += playerList[i].id + "<br>";
+}
+p.innerHTML = txt;
+txt = "";
+});
+var squar = {x:200, y:200};
+form.onsubmit = function(e){
+    name = input.value;
+    playerList[Id].name = name;
+    sub.type = "hidden";
+    input.type = "hidden";
+    squar.x = startPosX;
+    squar.y = startPosY;
+    angle = startPosAng;
+    socket.emit('joined', {name:name, id:Id});
+    e.preventDefault();
+}
+for(var i in playerList){
+    if(i != id && playerList[i].name != null){
+        count += 1;
+    }
+}
+onkeydown = function(e){
+      if(e.keyCode==37){
+              left = true;
+          }
+          else if(e.keyCode==38){
+              up = true;
+              e.preventDefault();
+          }
+          else if(e.keyCode==39){
+              right = true;
+          }
+          else if(e.keyCode==40){
+              down = true;
+              e.preventDefault();
+          }
+  }
+  onkeyup = function(e){
+      if(e.keyCode==37){
+              left = false;
+          }
+          else if(e.keyCode==38){
+              up = false;
+          }
+          else if(e.keyCode==39){
+              right = false;
+          }
+          else if(e.keyCode==40){
+              down = false;
+          }
+  }
+  socket.on('crashed', function(data){
+      crash = data;
+  });
+  socket.on('stop', function(data){
+      crash = null;
+  });
+  var active = true;
+  document.addEventListener("visibilitychange", event => {
+  if (document.visibilityState == "visible") {
+    active = true;
+  } else {
+    active = false;
+  }
+});
+socket.on('moved', function(data){
+  playerList[data.id].x = data.x;
+  playerList[data.id].y = data.y;
+  playerList[data.id].angle = data.angle;
+  playerList[data.id].name = data.name;
+  playerList[data.id].up = data.up;
+  playerList[data.id].ingame = data.ingame;
+  playerList[data.id].crash = data.crash;
+});
+var img = new Image();
+img.src = "/client/squar.png";
+function draw(){
+  ctx.fillStyle = "rgb(255,255,255)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if(Id != null && playerList != null && name != null){
+      ctx.save()
+    ctx.translate(squar.x, squar.y);
+    ctx.rotate(angle);
+    ctx.drawImage(img, -10, -10, 20, 20);
+    ctx.restore();
+    ctx.fillStyle = "rgb(0, 0, 0)";
+    ctx.font = "20px comic sans ms";
+    ctx.fillText(name, squar.x, squar.y-20);
+    ingame = true;
+  }
+  if(name == null){
+      ctx.fillStyle = "rgb(0, 255, 0)";
+      ctx.font = "20px comic sans ms";
+      ctx.fillText("CHOOSE A NAME TO MOVE", canvas.width/2-150, 250);
+  }
+ //movement
+ if(playerList != null && name != null){
+  if(left){
+      angle -= 8*(Math.PI/180);
+      playerList[Id].x = squar.x;
+      playerList[Id].angle = angle;
+      if(angle >= Math.PI*2){
+          angle = 0;
+      }
+  }
+  if(right){
+      angle += 8*(Math.PI/180);
+      playerList[Id].x = squar.x;
+      playerList[Id].angle = angle;
+      if(angle >= Math.PI*2){
+          angle = 0;
+      }
+  }
+  if(up){
+      squar.y -= Math.sin(angle+(270*(Math.PI/180)))*3;
+      squar.x -= Math.cos(angle+(270*(Math.PI/180)))*3;
+      playerList[Id].y = squar.y;
+  }
+  if(down){
+      squar.y += Math.sin(angle+(270*(Math.PI/180)))*3;
+      squar.x += Math.cos(angle+(270*(Math.PI/180)))*3;
+      playerList[Id].y = squar.y;
+  }
+}
+
+  if(playerList != null){
+  for(var i in playerList){
+      if(i != Id && Id != null){
+          if(playerList[i].name != null){
+      ctx.save();
+      ctx.translate(playerList[i].x, playerList[i].y);
+      ctx.rotate(playerList[i].angle);
+      ctx.drawImage(img, -10, -10, 20, 20);
+      ctx.restore();
+      ctx.fillStyle = "rgb(0, 0, 0)";
+          ctx.font = "20px comic sans ms";
+          ctx.fillText(playerList[i].name, playerList[i].x, playerList[i].y-20);
+
+          let min = angle - (60*(Math.PI/180));
+          let max = angle + (60*(Math.PI/180));
+
+          if(crash == playerList[i].id && crash != null && playerList[i].up == true){
+            squar.y -= Math.sin(playerList[i].angle+(270*(Math.PI/180)))*3;
+            squar.x -= Math.cos(playerList[i].angle+(270*(Math.PI/180)))*3;
+            if((playerList[i].angle - min)*(playerList[i].angle - max)<0){
+                socket.emit('ded', name);
+                ingame = false;
+                name = null;
+                input.type = "text";
+                sub.type = "submit";
+                startPosX = random(20, 480);
+                startPosY = random(20, 480);
+                startPosAng = random(0, Math.PI*2);
+            }
+
+      }
+      if(crash == playerList[i].id && crash != null && up == true){
+            squar.y -= Math.sin(playerList[i].angle+(270*(Math.PI/180)))*3;
+            squar.x -= Math.cos(playerList[i].angle+(270*(Math.PI/180)))*3;
+      }
+    }
+      
+      socket.emit('move', {x:squar.x, y:squar.y, id:Id, angle:angle, name:name, up:up, ingame:ingame, crash:crash, active:active,
+                            id2:i, x2:playerList[i].x, y2:playerList[i].y, angle2:playerList[i].angle});
+    }
+      
+  }
+}
+
+repeat();
+}
+function repeat(){
+setTimeout(draw, 20);
+}
+repeat();
+
+
+}
+</script>
+</head>
+<body>
+<canvas id="theCanvas" width="500" height="500" style="border: 1px solid #000;"></canvas>
+<p id="p"></p>
+<form id="userform">
+    <input type="text" id="name" autocomplete="off" required>
+    <input type="submit" id="sub">
+</form>
+</body>
+</html>
