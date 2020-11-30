@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <title>Game of Games</title>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 window.onload = function(){
@@ -39,6 +40,9 @@ var myright;
         var othertop;
         var otherbottom;
         var crash;
+var deds = 0;
+var kills = 0;
+var crashing = false;
 socket.on('setPlayerId', function(data){
 Id = data;
 });
@@ -120,6 +124,9 @@ onkeydown = function(e){
     active = false;
   }
 });
+socket.on('kill', function(data){
+    kills += 1;
+});
 socket.on('moved', function(data){
   playerList[data.id].x = data.x;
   playerList[data.id].y = data.y;
@@ -128,6 +135,8 @@ socket.on('moved', function(data){
   playerList[data.id].up = data.up;
   playerList[data.id].ingame = data.ingame;
   playerList[data.id].crash = data.crash;
+  playerList[data.id].deds = data.deds;
+  playerList[data.id].kills = data.kills;
 });
 var img = new Image();
 img.src = "/client/squar.png";
@@ -192,15 +201,23 @@ function draw(){
       ctx.fillStyle = "rgb(0, 0, 0)";
           ctx.font = "20px comic sans ms";
           ctx.fillText(playerList[i].name, playerList[i].x, playerList[i].y-20);
+          ctx.fillText(playerList[i].kills+" kills", playerList[i].x, playerList[i].y+35);
 
           let min = angle - (60*(Math.PI/180));
           let max = angle + (60*(Math.PI/180));
+          let min2 = angle - (90*(Math.PI/180));
+          let max2 = angle + (90*(Math.PI/180));
+
+          
 
           if(crash == playerList[i].id && crash != null && playerList[i].up == true){
             squar.y -= Math.sin(playerList[i].angle+(270*(Math.PI/180)))*3;
             squar.x -= Math.cos(playerList[i].angle+(270*(Math.PI/180)))*3;
             if((playerList[i].angle - min)*(playerList[i].angle - max)<0){
-                socket.emit('ded', name);
+                if(crashing == false){
+                deds += 1;
+                }
+                socket.emit('ded', {name:name, deds:deds, killer:playerList[i].name, killID:playerList[i].id});
                 ingame = false;
                 name = null;
                 input.type = "text";
@@ -208,16 +225,30 @@ function draw(){
                 startPosX = random(20, 480);
                 startPosY = random(20, 480);
                 startPosAng = random(0, Math.PI*2);
+                crashing = true;
+            }
+            else {
+                crashing = false;
             }
 
       }
+      let dead;
+      if((playerList[i].angle - min2)*(playerList[i].angle - max2)<0){
+          dead = true;
+      }
       if(crash == playerList[i].id && crash != null && up == true){
+          if(dead){
+            squar.y += Math.sin(playerList[i].angle+(270*(Math.PI/180)))*3;
+            squar.x += Math.cos(playerList[i].angle+(270*(Math.PI/180)))*3;
+          }
+          else {
             squar.y -= Math.sin(playerList[i].angle+(270*(Math.PI/180)))*3;
             squar.x -= Math.cos(playerList[i].angle+(270*(Math.PI/180)))*3;
+          }
       }
     }
       
-      socket.emit('move', {x:squar.x, y:squar.y, id:Id, angle:angle, name:name, up:up, ingame:ingame, crash:crash, active:active,
+      socket.emit('move', {x:squar.x, y:squar.y, id:Id, angle:angle, name:name, up:up, ingame:ingame, crash:crash, active:active, deds:deds, kills:kills,
                             id2:i, x2:playerList[i].x, y2:playerList[i].y, angle2:playerList[i].angle});
     }
       
