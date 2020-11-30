@@ -31,7 +31,7 @@ io.sockets.on('connection', function(socket){
 var socketId = Math.random();
 SOCKET_LIST[socketId] = socket;
 
-players[socketId] = {id:socketId, x:200, y:200, angle:180*Math.PI/180, name:null, up:false, ingame:false, crash:null, active:true, width:10, height:10};
+players[socketId] = {id:socketId, x:200, y:200, angle:180*Math.PI/180, name:null, up:false, ingame:false, crash:null, active:true, width:10, height:10, deds:0, kills:0};
 socket.emit('setPlayerId', socketId);
 for(var i in SOCKET_LIST){
  SOCKET_LIST[i].emit('players', players);
@@ -65,13 +65,28 @@ socket.on('joined', function(data){
         }
 });
 socket.on('ded', function(data){
-    if(data != null){
-    console.log("aww man! "+JSON.stringify(data)+" died!");
+    if(data.name != null){
+    console.log("aww man! "+JSON.stringify(data.name)+" was killed by "+JSON.stringify(data.killer));
+    SOCKET_LIST[data.killID].emit('kill', 1);
     }
-})
+});
 
  socket.on('disconnect',function(reason){
-     console.log("oops, "+JSON.stringify(playerName)+" disconnected because of "+reason);
+     let thing = "transport close";
+     if(playerName == ""){
+         if(reason.normalize() === thing.normalize()){
+         console.log("oops, an unnamed player closed the game");
+         } else {
+            console.log("oops, an unnamed player disconnected because of "+reason);
+        }
+     }
+     else{
+     if(reason.normalize() === thing.normalize()){
+     console.log("oops, "+JSON.stringify(playerName)+" closed the game");
+     } else {
+        console.log("oops, "+JSON.stringify(playerName)+" disconnected because of "+reason);
+     }
+    }
      delete SOCKET_LIST[socketId];
      delete players[socketId];
      for(var i in SOCKET_LIST){
